@@ -10,9 +10,7 @@ from pathlib import Path
 import Metashape
 import numpy as np
 from matplotlib import colormaps
-from matplotlib.axes import Axes
-from matplotlib.colors import BoundaryNorm, Normalize
-from matplotlib.figure import Figure
+from matplotlib.colors import BoundaryNorm
 from PySide2 import QtWidgets
 from PySide2.QtCore import QFile
 from PySide2.QtUiTools import QUiLoader
@@ -21,6 +19,7 @@ from mplwidget import MplWidget
 
 PLUGIN_UI_FILE_PATH = Path(__file__).parent / "align.ui"
 PLOT_UI_FILE_PATH = Path(__file__).parent / "plot.ui"
+MENU_ITEM_NAME = "GEOSTIX/Align and analyse"
 ACCURACY_OPTIONS = [
     ("Highest", 0),
     ("High", 1),
@@ -43,10 +42,13 @@ def set_cameras_reference_enabled(chunk: Metashape.Chunk, value: bool):
     for camera in chunk.cameras:
         camera.reference.enabled = value
 
-def run_alignment(chunk, accuracy: int, generic_preselection: bool, reference_preselection: bool):
+def chunk_has_aligned_cameras(chunk: Metashape.Chunk) -> bool:
+    return any(camera.transform for camera in chunk.cameras)
+
+def run_alignment(chunk: Metashape.Chunk, accuracy: int, generic_preselection: bool, reference_preselection: bool):
     chunk.matchPhotos(downscale=accuracy, generic_preselection=generic_preselection, 
                           reference_preselection=reference_preselection)
-    chunk.alignCameras()
+    chunk.alignCameras(reset_alignment=True)
 
 def setup_initial_lever(chunk: Metashape.Chunk, lever_arm: Metashape.Vector):
     sensor = chunk.sensors[0]
@@ -132,6 +134,11 @@ def compute_statistics(chunk: Metashape.Chunk) -> Statistics:
 
     cameras = [x for x in chunk.cameras if x.reference.enabled and x.transform]
     num_cameras = len(cameras)
+    if num_cameras < 2:
+        raise RuntimeError(
+            f"Not enough aligned cameras with a GNSS reference to compute statistics "
+            f"(found {num_cameras}, need at least 2)."
+        )
     for camera in cameras:
         position_estimated_geoccs = get_estimated_position(camera)
         position_reference_geoccs = get_reference_position(camera)
@@ -225,17 +232,33 @@ def display_analysis_window(parent: QtWidgets.QWidget, initial_statistics: Stati
     dialog.exec()
 
 def execute(parent, dialog, chunk: Metashape.Chunk):
-    lever_arm = Metashape.Vector([dialog.lever_x_spin.value(), 
-                                  dialog.lever_y_spin.value(),
-                                  dialog.lever_z_spin.value()])
-    align_without_reference(chunk, dialog.accuracy_combo.currentData(), 
-                            dialog.generic_preselection_check.isChecked(),
-                            dialog.reference_preselection_check.isChecked(),
-                            lever_arm)
-    initial_statistics = compute_statistics(chunk)
-    optimize_with_reference(chunk)
-    optimize_statistics = compute_statistics(chunk)
-    display_analysis_window(parent, initial_statistics, optimize_statistics)
+    if chunk_has_aligned_cameras(chunk):
+        answer = QtWidgets.QMessageBox.question(
+            parent, "Chunk already aligned",
+            "This chunk already has aligned cameras. Continuing will realign them and "
+            "discard the existing alignment. Do you want to proceed?",
+            QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No,
+            QtWidgets.QMessageBox.StandardButton.No,
+        )
+        if answer != QtWidgets.QMessageBox.StandardButton.Yes:
+            print("Align and analyse cancelled: chunk already has aligned cameras.")
+            return
+
+    try:
+        lever_arm = Metashape.Vector([dialog.lever_x_spin.value(),
+                                      dialog.lever_y_spin.value(),
+                                      dialog.lever_z_spin.value()])
+
+        align_without_reference(chunk, dialog.accuracy_combo.currentData(),
+                                dialog.generic_preselection_check.isChecked(),
+                                dialog.reference_preselection_check.isChecked(),
+                                lever_arm)
+        initial_statistics = compute_statistics(chunk)
+        optimize_with_reference(chunk)
+        optimize_statistics = compute_statistics(chunk)
+        display_analysis_window(parent, initial_statistics, optimize_statistics)
+    except Exception as error:
+        QtWidgets.QMessageBox.critical(parent, "Align and analyse failed", str(error))
 
 
 def load_align_dialog(parent, chunk: Metashape.Chunk) -> QtWidgets.QDialog:
@@ -258,12 +281,12 @@ def align_and_analyse():
     chunk = document.chunk
     qapplication = QtWidgets.QApplication.instance()
     parent = qapplication.activeWindow()
+
+    if chunk is None or len(chunk.cameras) == 0 or len(chunk.sensors) == 0:
+        QtWidgets.QMessageBox.warning(parent, "No photos",
+                                      "The active chunk has no photos to align. Add photos first.")
+        return
+
     dialog = load_align_dialog(parent, chunk)
     dialog.button_box.accepted.connect(lambda: execute(parent, dialog, chunk))
     dialog.exec()
-
-if __name__ == "__main__":
-    MENU_ITEM_NAME = "GEOSTIX/Align and analyse"
-    application: Metashape.Application = Metashape.app
-    application.removeMenuItem(MENU_ITEM_NAME)
-    application.addMenuItem(MENU_ITEM_NAME, align_and_analyse)

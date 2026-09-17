@@ -30,6 +30,7 @@ CRS_COMBO_ITEMS = [
 ]
 
 UI_FILE_PATH = Path(__file__).parent / "import_geostix.ui"
+MENU_ITEM_NAME = "GEOSTIX/Import images and GNSS"
 
 GPS_EPOCH = datetime(1980, 1, 6, tzinfo=timezone.utc)
 GPS_UTC_LEAP_SECONDS = 18  # GPS time - UTC, constant since the last leap second (2016-12-31)
@@ -236,9 +237,3 @@ def import_geostix_tool():
     dialog.log_file_button.clicked.connect(lambda: browse_for_log_file(dialog))
     setup_crs_combo(dialog)
     dialog.exec()
-
-if __name__ == "__main__":
-    MENU_ITEM_NAME = "GEOSTIX/Import images and GNSS"
-    application: Metashape.Application = Metashape.app
-    application.removeMenuItem(MENU_ITEM_NAME)
-    application.addMenuItem(MENU_ITEM_NAME, import_geostix_tool)
