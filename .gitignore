@@ -1,0 +1,8 @@
+# Workspace
+/example_data
+/venv
+/.vscode
+
+# Python related
+__pycache__
+*.pyc
