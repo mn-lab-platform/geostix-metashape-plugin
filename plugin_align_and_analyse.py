@@ -1,9 +1,3 @@
-# Test for dependencies in Metashape Python.
-# This install should be executed only once with first run.
-from modules.pip_auto_install import pip_install
-
-pip_install("numpy\nmatplotlib")
-
 from dataclasses import dataclass
 from pathlib import Path
 

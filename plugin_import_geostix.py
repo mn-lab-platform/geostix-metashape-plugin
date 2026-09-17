@@ -1,10 +1,3 @@
-# Test for dependencies in Metashape Python.
-# This install should be executed only once with first run.
-from modules.pip_auto_install import pip_install
-
-pip_install("numpy\npandas\nscipy\npillow")
-
-# Main plugin code
 import os
 from datetime import datetime, timezone
 from pathlib import Path

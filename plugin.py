@@ -1,3 +1,8 @@
+# This install should be executed only once with first run.
+from modules.pip_auto_install import pip_install
+
+pip_install("numpy\npandas\nscipy\npillow\nmatplotlib", ask=False)
+
 import Metashape
 
 import plugin_align_and_analyse
