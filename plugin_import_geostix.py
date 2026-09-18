@@ -1,6 +1,7 @@
 import os
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 
 import Metashape
 import numpy as np
@@ -210,7 +211,7 @@ def setup_crs_combo(dialog: QtWidgets.QDialog) -> None:
 
     combo.currentIndexChanged.connect(on_current_index_changed)
 
-def load_dialog(parent: QtWidgets.QWidget | None = None) -> QtWidgets.QDialog:
+def load_dialog(parent: Optional[QtWidgets.QWidget]) -> QtWidgets.QDialog:
     loader = QUiLoader()
     ui_file = QFile(str(UI_FILE_PATH))
     ui_file.open(QFile.OpenModeFlag.ReadOnly)
