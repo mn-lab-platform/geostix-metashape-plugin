@@ -10,7 +10,6 @@ from PIL import ExifTags, Image
 from PySide2 import QtWidgets
 from PySide2.QtCore import QFile
 from PySide2.QtUiTools import QUiLoader
-from scipy.optimize import minimize
 
 IMAGE_EXTENSIONS = ("jpg", "jpeg")
 GEOSTIX_LOG_COLUMNS = ["TimeOfWeek", "WeekNumber", "FixStatus", "Lat", "Lon", 
